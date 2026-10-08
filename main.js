@@ -21,14 +21,64 @@ var ball = {
     dy:3
 }
 
+var video, poseNet;
+var rightWristY = 0, rightWristScore = 0;
+var gameStatus = "";
+var ballTouchSound, missedSound;
+
+function preload(){
+  ballTouchSound = loadSound("ball_touch_paddel.wav");
+  missedSound = loadSound("missed.wav");
+}
+
 function setup(){
   var canvas =  createCanvas(700,600);
+  canvas.parent('canvas');
+  video = createCapture(VIDEO);
+  video.size(700, 600);
+  video.hide();
+  poseNet = ml5.poseNet(video, modelLoaded);
+  poseNet.on('pose', gotPoses);
+}
+
+function modelLoaded(){
+  console.log('PoseNet is initialized');
+}
+
+function gotPoses(results){
+  if(results.length > 0){
+    rightWristY = results[0].pose.rightWrist.y;
+    rightWristScore = results[0].pose.rightWrist.confidence;
+  }
+}
+
+function startGame(){
+  gameStatus = "start";
+  document.getElementById("status").innerHTML = "Game is loaded";
+}
+
+function restartGame(){
+  pcscore = 0;
+  playerscore = 0;
+  reset();
+  loop();
 }
 
 
 function draw(){
 
  background(0); 
+ image(video, 0, 0, 700, 600);
+
+ if(rightWristScore > 0.2){
+   fill("red");
+   stroke("red");
+   circle(30, rightWristY, 20);
+ }
+
+ if(gameStatus != "start"){
+   return;
+ }
 
  fill("black");
  stroke("black");
@@ -45,7 +95,7 @@ function draw(){
    fill(250,0,0);
     stroke(0,0,250);
     strokeWeight(0.5);
-   paddle1Y = mouseY; 
+   paddle1Y = rightWristY; 
    rect(paddle1X,paddle1Y,paddle1,paddle1Height,100);
    
    
@@ -117,11 +167,14 @@ function move(){
   if (ball.x-2.5*ball.r/2< 0){
   if (ball.y >= paddle1Y&& ball.y <= paddle1Y + paddle1Height) {
     ball.dx = -ball.dx+0.5; 
+    playerscore++;
+    ballTouchSound.play();
   }
   else{
     pcscore++;
+    missedSound.play();
     reset();
-    navigator.vibrate(100);
+    if (navigator.vibrate) navigator.vibrate(100);
   }
 }
 if(pcscore ==4){
@@ -132,9 +185,8 @@ if(pcscore ==4){
     stroke("white");
     textSize(25)
     text("Game Over!☹☹",width/2,height/2);
-    text("Reload The Page!",width/2,height/2+30)
+    text("Press Restart to play again!",width/2,height/2+30)
     noLoop();
-    pcscore = 0;
 }
    if(ball.y+ball.r > height || ball.y-ball.r <0){
        ball.dy =- ball.dy;
@@ -155,36 +207,10 @@ function models(){
 
 //this function help to not go te paddle out of canvas
 function paddleInCanvas(){
-  if(mouseY+paddle1Height > height){
-    mouseY=height-paddle1Height;
+  if(rightWristY+paddle1Height > height){
+    rightWristY=height-paddle1Height;
   }
-  if(mouseY < 0){
-    mouseY =0;
+  if(rightWristY < 0){
+    rightWristY =0;
   }  
-}
-
-function setup() {
-	canvas = createCanvas(1240,336);
-	canvas.parent('canvas');
-	instializeInSetup(mario);
-	video = createCapture(VIDEO);
-	video.size(800, 400);
-	video.parent('game_console');
-	poseNet = ml5.poseNet(video, modelLoaded);
-	poseNet.on('pose', gotPoses);
-}
-
-wristX = ""
-wristY = ""
-wrist_score = ""
-results = ""
-
-function gotPoses(results)
-{
-if(results.length > 0)
-{
-  wristX = results[0].pose.nose.x;
-  wristY = results[0].pose.nose.y;
-  console.log("results");
-}
 }
